@@ -102,7 +102,7 @@ vim.g.have_nerd_font = false
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = 'a'
@@ -257,7 +257,36 @@ rtp:prepend(lazypath)
 require('lazy').setup({
   -- NOTE: Plugins can be added via a link or github org/name. To run setup automatically, use `opts = {}`
   { 'NMAC427/guess-indent.nvim', opts = {} },
+  {
+    'folke/edgy.nvim',
+    opts = {
+      left = {
+        {
+          title = 'Files',
+          ft = 'neo-tree',
+          filter = function(buf) return vim.b[buf].neo_tree_source == 'filesystem' end,
+          size = { height = 0.5 },
+          pinned = true,
+          open = function() vim.cmd 'Neotree filesystem reveal left' end,
+        },
+      },
+    },
+    config = function(_, opts)
+      require('edgy').setup(opts)
 
+      -- open pinned views at startup
+      vim.api.nvim_create_autocmd('VimEnter', {
+        callback = function() require('edgy').open() end,
+      })
+
+      -- keybind to toggle sidebars
+      vim.keymap.set('n', '<leader>ee', function() require('edgy').toggle() end, { desc = 'Toggle Edgy panels' })
+
+      vim.keymap.set('n', '<leader>w', '<C-w>w', { desc = 'Return to editor window' })
+
+      vim.keymap.set('n', '<leader>e', function() vim.cmd 'Neotree filesystem reveal left focus' end, { desc = 'Focus sidebar and reveal current file' })
+    end,
+  },
   -- Alternatively, use `config = function() ... end` for full control over the configuration.
   -- If you prefer to call `setup` explicitly, use:
   --    {
@@ -874,7 +903,7 @@ require('lazy').setup({
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
   -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
+  require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
