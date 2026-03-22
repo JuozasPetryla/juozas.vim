@@ -625,13 +625,35 @@ require('lazy').setup({
       local servers = {
         clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {
+          on_new_config = function(new_config, root_dir)
+            local venv_python = root_dir .. '/.venv/bin/python'
+
+            if vim.fn.executable(venv_python) == 1 then
+              new_config.settings = new_config.settings or {}
+              new_config.settings.python = new_config.settings.python or {}
+              new_config.settings.python.pythonPath = venv_python
+            end
+          end,
+          settings = {
+            python = {
+              analysis = {
+                autoSearchPaths = true,
+                useLibraryCodeForTypes = true,
+                diagnosticMode = 'workspace',
+              },
+            },
+          },
+        },
         -- rust_analyzer = {},
         -- Some languages (like typescript) have entire language plugins that can be useful:
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
-        -- ts_ls = {},
+        ts_ls = {},
+        eslint = {},
+        html = {},
+        cssls = {},
       }
 
       -- Ensure the servers and tools above are installed
@@ -641,7 +663,17 @@ require('lazy').setup({
       --    :Mason
       --
       -- You can press `g?` for help in this menu.
-      local ensure_installed = vim.tbl_keys(servers or {})
+      local ensure_installed = { 'clangd', 'pyright' }
+
+      local js_tools = {
+        'typescript-language-server',
+        'eslint-lsp',
+        'html-lsp',
+        'css-lsp',
+      }
+
+      vim.list_extend(ensure_installed, js_tools)
+
       vim.list_extend(ensure_installed, {
         'lua-language-server', -- Lua Language server
         'stylua', -- Used to format Lua code
@@ -902,7 +934,7 @@ require('lazy').setup({
   -- require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
+  require 'kickstart.plugins.autopairs',
   require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
