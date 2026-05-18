@@ -149,6 +149,7 @@ vim.o.splitbelow = true
 --   and `:help lua-guide-options`
 vim.o.list = true
 vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
+vim.opt.exrc = true
 
 -- Preview substitutions live, as you type!
 vim.o.inccommand = 'split'
@@ -623,7 +624,15 @@ require('lazy').setup({
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
       --  See `:help lsp-config` for information about keys and how to configure
       local servers = {
-        clangd = {},
+        clangd = {
+          cmd = {
+            'clangd',
+            '--clang-tidy',
+            '--completion-style=detailed',
+            '--header-insertion=never',
+            '--limit-results=50',
+          },
+        },
         -- gopls = {},
         pyright = {
           on_new_config = function(new_config, root_dir)
