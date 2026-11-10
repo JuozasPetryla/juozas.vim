@@ -100,6 +100,7 @@ vim.g.have_nerd_font = false
 
 -- Make line numbers default
 vim.o.number = true
+vim.o.termguicolors = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
 vim.o.relativenumber = true
@@ -639,6 +640,14 @@ require('lazy').setup({
           },
         },
         -- gopls = {},
+        hls = {
+          -- Use GHCup's vanilla GHC 9.10.3 matching Mason's HLS build.
+          -- The system GHC has incompatible library ABI hashes.
+          cmd = { vim.fn.expand '~/.ghcup/bin/ghcup', 'run', '--ghc', '9.10.3', '--', 'haskell-language-server-wrapper', '--lsp' },
+        },
+        kotlin_lsp = {
+          cmd = { 'intellij-server', '--stdio' },
+        },
         pyright = {
           on_new_config = function(new_config, root_dir)
             local venv_python = root_dir .. '/.venv/bin/python'
@@ -677,7 +686,7 @@ require('lazy').setup({
       --    :Mason
       --
       -- You can press `g?` for help in this menu.
-      local ensure_installed = { 'clangd', 'pyright' }
+      local ensure_installed = { 'clangd', 'pyright', 'kotlin-lsp', 'haskell-language-server' }
 
       local js_tools = {
         'typescript-language-server',
@@ -693,6 +702,12 @@ require('lazy').setup({
         'stylua',              -- Used to format Lua code
         -- You can add other tools here that you want Mason to install
       })
+
+      -- Mason uses GHCup to install Haskell Language Server.
+      local ghcup_bin = vim.fn.expand '~/.ghcup/bin'
+      if vim.fn.executable 'ghcup' == 0 and vim.fn.executable(ghcup_bin .. '/ghcup') == 1 then
+        vim.env.PATH = vim.env.PATH .. ':' .. ghcup_bin
+      end
 
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -926,14 +941,42 @@ require('lazy').setup({
 
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
+    lazy = false,
+    build = ':TSUpdate',
     config = function()
-      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim',
-        'vimdoc' }
-      require('nvim-treesitter').install(filetypes)
-      vim.api.nvim_create_autocmd('FileType', {
-        pattern = filetypes,
-        callback = function() vim.treesitter.start() end,
+      local parsers = {
+        'bash', 'c', 'cpp', 'cmake', 'make', 'devicetree',
+        'python', 'haskell', 'kotlin', 'java', 'rust', 'go', 'gomod',
+        'javascript', 'typescript', 'tsx', 'html', 'css', 'scss',
+        'json', 'json5', 'yaml', 'toml', 'xml', 'sql', 'dockerfile',
+        'lua', 'luadoc', 'luap', 'vim', 'vimdoc', 'query', 'regex',
+        'markdown', 'markdown_inline', 'diff', 'gitcommit', 'gitignore',
+      }
+
+      vim.filetype.add { extension = { dts = 'dts', dtsi = 'dts', dtso = 'dts', overlay = 'dts' } }
+      vim.treesitter.language.register('devicetree', 'dts')
+      vim.treesitter.language.register('bash', { 'sh', 'bash' })
+      vim.treesitter.language.register('tsx', 'typescriptreact')
+      vim.treesitter.language.register('javascript', 'javascriptreact')
+      vim.treesitter.language.register('json5', 'jsonc')
+
+      local function start_highlighting(buf)
+        if not vim.api.nvim_buf_is_loaded(buf) or vim.bo[buf].buftype ~= '' then return end
+        -- Keep Vim's syntax fallback when a language has no installed parser.
+        pcall(vim.treesitter.start, buf)
+      end
+
+      vim.api.nvim_create_autocmd({ 'FileType', 'BufWinEnter' }, {
+        group = vim.api.nvim_create_augroup('treesitter-highlighting', { clear = true }),
+        callback = function(event) start_highlighting(event.buf) end,
       })
+
+      -- Installation is asynchronous; also highlight buffers already open when it finishes.
+      require('nvim-treesitter').install(parsers):await(vim.schedule_wrap(function()
+        for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+          start_highlighting(buf)
+        end
+      end))
     end,
   },
 
