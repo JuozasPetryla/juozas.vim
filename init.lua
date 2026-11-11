@@ -115,7 +115,10 @@ vim.o.showmode = false
 --  Schedule the setting after `UiEnter` because it can increase startup-time.
 --  Remove this option if you want your OS clipboard to remain independent.
 --  See `:help 'clipboard'`
-vim.schedule(function() vim.o.clipboard = 'unnamedplus' end)
+-- vim.schedule(function() vim.o.clipboard = 'unnamedplus' end)
+--
+--
+vim.o.clipboard = 'unnamedplus'
 
 -- Enable break indent
 vim.o.breakindent = true
@@ -232,6 +235,11 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   callback = function() vim.hl.on_yank() end,
 })
 
+vim.g.enable_autoformat = false
+vim.api.nvim_create_user_command('FormatDisable', function() vim.g.enable_autoformat = false end, {})
+
+vim.api.nvim_create_user_command('FormatEnable', function() vim.g.enable_autoformat = true end, {})
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -259,6 +267,7 @@ rtp:prepend(lazypath)
 require('lazy').setup({
   -- NOTE: Plugins can be added via a link or github org/name. To run setup automatically, use `opts = {}`
   { 'NMAC427/guess-indent.nvim', opts = {} },
+  { 'OXY2DEV/markview.nvim', lazy = false },
   {
     'folke/edgy.nvim',
     opts = {
@@ -629,6 +638,27 @@ require('lazy').setup({
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
       --  See `:help lsp-config` for information about keys and how to configure
+
+      vim.filetype.add {
+        extension = {
+          bb = 'bitbake',
+          bbappend = 'bitbake',
+          inc = 'bitbake',
+          conf = 'bitbake',
+        },
+      }
+
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = 'bitbake',
+        callback = function(args)
+          vim.lsp.start {
+            name = 'bitbake',
+            cmd = { 'language-server-bitbake', '--stdio' },
+            root_dir = util.root_pattern('bitbake.conf', 'bblayers.conf', 'layer.conf', '.git')(vim.api.nvim_buf_get_name(args.buf)) or vim.fn.getcwd(),
+            capabilities = capabilities,
+          }
+        end,
+      })
       local servers = {
         clangd = {
           cmd = {
@@ -638,6 +668,20 @@ require('lazy').setup({
             '--header-insertion=never',
             '--limit-results=50',
           },
+
+          on_attach = function(client, bufnr)
+            vim.api.nvim_create_autocmd('BufWritePre', {
+              buffer = bufnr,
+              callback = function()
+                if not vim.g.enable_autoformat then return end
+                vim.lsp.buf.format {
+                  bufnr = bufnr,
+                  async = false,
+                  filter = function(c) return c.name == 'clangd' end,
+                }
+              end,
+            })
+          end,
         },
         -- gopls = {},
         hls = {
@@ -653,17 +697,27 @@ require('lazy').setup({
             local venv_python = root_dir .. '/.venv/bin/python'
 
             if vim.fn.executable(venv_python) == 1 then
-              new_config.settings = new_config.settings or {}
-              new_config.settings.python = new_config.settings.python or {}
-              new_config.settings.python.pythonPath = venv_python
+              new_config.settings = vim.tbl_deep_extend('force', new_config.settings or {}, {
+                python = {
+                  pythonPath = venv_python,
+                  analysis = {
+                    autoSearchPaths = true,
+                    useLibraryCodeForTypes = true,
+                    diagnosticMode = 'workspace',
+                    typeCheckingMode = 'basic',
+                  },
+                },
+              })
             end
           end,
+
           settings = {
             python = {
               analysis = {
                 autoSearchPaths = true,
                 useLibraryCodeForTypes = true,
                 diagnosticMode = 'workspace',
+                typeCheckingMode = 'basic',
               },
             },
           },
@@ -699,7 +753,8 @@ require('lazy').setup({
 
       vim.list_extend(ensure_installed, {
         'lua-language-server', -- Lua Language server
-        'stylua',              -- Used to format Lua code
+        'stylua', -- Used to format Lua code
+        'clang-format', -- Used to format Lua code
         -- You can add other tools here that you want Mason to install
       })
 
@@ -761,26 +816,16 @@ require('lazy').setup({
     opts = {
       notify_on_error = false,
       format_on_save = function(bufnr)
-        -- Disable "format_on_save lsp_fallback" for languages that don't
-        -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
-        if disable_filetypes[vim.bo[bufnr].filetype] then
-          return nil
-        else
-          return {
-            timeout_ms = 500,
-            lsp_format = 'fallback',
-          }
-        end
+        if not vim.g.enable_autoformat then return end
+        return {
+          timeout_ms = 500,
+          lsp_format = 'fallback',
+        }
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
-        -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
-        --
-        -- You can use 'stop_after_first' to run the first available formatter from the list
-        -- javascript = { "prettierd", "prettier", stop_after_first = true },
+        c = { 'clang_format' },
+        cpp = { 'clang_format' },
       },
     },
   },
