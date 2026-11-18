@@ -684,11 +684,12 @@ require('lazy').setup({
           end,
         },
         -- gopls = {},
-        hls = {
-          -- Use GHCup's vanilla GHC 9.10.3 matching Mason's HLS build.
-          -- The system GHC has incompatible library ABI hashes.
-          cmd = { vim.fn.expand '~/.ghcup/bin/ghcup', 'run', '--ghc', '9.10.3', '--', 'haskell-language-server-wrapper', '--lsp' },
-        },
+        -- disable hls almost always
+        -- hls = {
+        --   -- Use GHCup's vanilla GHC 9.10.3 matching Mason's HLS build.
+        --   -- The system GHC has incompatible library ABI hashes.
+        --   cmd = { vim.fn.expand '~/.ghcup/bin/ghcup', 'run', '--ghc', '9.10.3', '--', 'haskell-language-server-wrapper', '--lsp' },
+        -- },
         kotlin_lsp = {
           cmd = { 'intellij-server', '--stdio' },
         },
@@ -740,7 +741,8 @@ require('lazy').setup({
       --    :Mason
       --
       -- You can press `g?` for help in this menu.
-      local ensure_installed = { 'clangd', 'pyright', 'kotlin-lsp', 'haskell-language-server' }
+      -- local ensure_installed = { 'clangd', 'pyright', 'kotlin-lsp', 'haskell-language-server' }
+      local ensure_installed = { 'clangd', 'pyright', 'kotlin-lsp' }
 
       local js_tools = {
         'typescript-language-server',
@@ -758,11 +760,12 @@ require('lazy').setup({
         -- You can add other tools here that you want Mason to install
       })
 
+      -- Disable Haskell alsmost always
       -- Mason uses GHCup to install Haskell Language Server.
-      local ghcup_bin = vim.fn.expand '~/.ghcup/bin'
-      if vim.fn.executable 'ghcup' == 0 and vim.fn.executable(ghcup_bin .. '/ghcup') == 1 then
-        vim.env.PATH = vim.env.PATH .. ':' .. ghcup_bin
-      end
+      -- local ghcup_bin = vim.fn.expand '~/.ghcup/bin'
+      -- if vim.fn.executable 'ghcup' == 0 and vim.fn.executable(ghcup_bin .. '/ghcup') == 1 then
+      --   vim.env.PATH = vim.env.PATH .. ':' .. ghcup_bin
+      -- end
 
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
